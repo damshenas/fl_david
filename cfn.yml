@@ -71,7 +71,7 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "my-s3-bucket-${AWS::StackName}-${AWS::Region}"
+      BucketName: !Sub "${AWS::StackName}-${AWS::Region}-bucket"
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -106,7 +106,7 @@ Resources:
     Properties:
       LaunchTemplateData:
         ImageId: !Sub "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.10/stable/current/amd64/hvm/ebs-gp3/ami-id}}"
-        InstanceType: t2.small
+        InstanceType: t3.medium
         KeyName: !Ref SSHKeyName
         IamInstanceProfile:
           Arn: !GetAtt InstanceProfile.Arn
@@ -120,7 +120,11 @@ Resources:
             apt install -y nodejs
             echo "export S3_BUCKET=${S3Bucket}" >> /etc/environment
             source /etc/environment
-
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub "${AWS::StackName}"
   ## Scaling
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
