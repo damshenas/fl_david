@@ -119,13 +119,16 @@ Resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
-            apt update -y
-            apt upgrade -y
-            apt install -y curl nginx
+            apt-get update -y
+            apt-get install -y curl nginx git
             curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
             apt install -y nodejs
             echo "export S3_BUCKET=${S3Bucket}" >> /etc/environment
             source /etc/environment
+            GITHUB_TOKEN="your_github_token"
+            REPO_URL="https://github.com/username/repository.git"
+            git clone https://$GITHUB_TOKEN@github.com/username/repository.git || echo "Git clone failed" >> git_clone_error.log
+            echo "Continuing with the rest of the script..."
         TagSpecifications:
           - ResourceType: instance
             Tags:
