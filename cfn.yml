@@ -5,6 +5,8 @@ Parameters:
     Type: String
 
 Resources:
+
+  ## Network
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -64,29 +66,19 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref RouteTable
+
+  ## S3 Bucket
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "my-s3-bucket-${AWS::StackName}-${AWS::Region}"
-  S3BucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref S3Bucket
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: "*"
-            Action:
-              - s3:GetObject
-              - s3:PutObject
-            Resource: !Sub "${S3Bucket.Arn}/*"
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref EC2Role
+
+  ## IAM Role
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
@@ -107,23 +99,29 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub "${S3Bucket.Arn}/*"
-  LaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
+
+  ## EC2 Instance
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      ImageId: !Sub "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.10/stable/current/amd64/hvm/ebs-gp2/ami-id}}"
-      InstanceType: t2.small
-      KeyName: !Ref SSHKeyName
-      IamInstanceProfile: !Ref InstanceProfile
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          apt update -y
-          apt upgrade -y
-          apt install -y curl nginx
-          curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
-          apt install -y nodejs
-          echo "export S3_BUCKET=${S3Bucket}" >> /etc/environment
-          source /etc/environment
+      LaunchTemplateData:
+        ImageId: !Sub "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.10/stable/current/amd64/hvm/ebs-gp3/ami-id}}"
+        InstanceType: t2.small
+        KeyName: !Ref SSHKeyName
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            apt update -y
+            apt upgrade -y
+            apt install -y curl nginx
+            curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
+            apt install -y nodejs
+            echo "export S3_BUCKET=${S3Bucket}" >> /etc/environment
+            source /etc/environment
+
+  ## Scaling
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -133,7 +131,10 @@ Resources:
       VPCZoneIdentifier:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
-      LaunchConfigurationName: !Ref LaunchConfiguration
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+
 Outputs:
   S3BucketName:
     Value: !Ref S3Bucket
