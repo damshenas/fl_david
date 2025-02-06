@@ -72,10 +72,10 @@ Resources:
       BucketName: !Sub "${AWS::StackName}-${AWS::Region}-bucket"
 
   ## IAM Policy
-  S3AccessPolicy:
-    Type: "AWS::IAM::Policy"
+  S3AccessManagedPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
     Properties:
-      PolicyName: "S3AccessPolicy"
+      ManagedPolicyName: "S3AccessManagedPolicy"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
